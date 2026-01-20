@@ -105,10 +105,10 @@ public class PhotographFrameEntity extends HangingEntity {
         setDirection(Direction.from3DDataValue(direction));
     }
 
-    //@Override
-    public @NotNull Packet<ClientGamePacketListener> getAddEntityPacket(ServerEntity entity) {
+    @Override
+    public @NotNull Packet<ClientGamePacketListener> getAddEntityPacket() {
         int packedData = (size << 8) | direction.get3DDataValue();
-        return new ClientboundAddEntityPacket(this, packedData, this.getPos());
+        return new ClientboundAddEntityPacket(this, packedData, this.pos);
     }
 
     public void addAdditionalSaveData(@NotNull CompoundTag tag) {
@@ -244,6 +244,33 @@ public class PhotographFrameEntity extends HangingEntity {
         }
 
         return level().getEntities(this, getBoundingBox(), HANGING_ENTITY).isEmpty();
+    }
+
+    @Override
+    protected void recalculateBoundingBox() {
+        if (this.direction != null) {
+            double hangOffset = 0.46875;
+            double x = (double)this.pos.getX() + 0.5 - (double)this.direction.getStepX() * hangOffset;
+            double y = (double)this.pos.getY() + 0.5 - (double)this.direction.getStepY() * hangOffset;
+            double z = (double)this.pos.getZ() + 0.5 - (double)this.direction.getStepZ() * hangOffset;
+            this.setPosRaw(x, y, z);
+
+            double width = (double)this.getWidth();
+            double height = (double)this.getHeight();
+            double depth = (double)this.getWidth();
+
+            Direction.Axis axis = this.direction.getAxis();
+            switch (axis) {
+                case X -> width = 1.0;
+                case Y -> height = 1.0;
+                case Z -> depth = 1.0;
+            }
+
+            width /= 32.0;
+            height /= 32.0;
+            depth /= 32.0;
+            this.setBoundingBox(new AABB(x - width, y - height, z - depth, x + width, y + height, z + depth));
+        }
     }
 
     @Override

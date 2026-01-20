@@ -18,7 +18,7 @@ import java.util.List;
  * Since it changes only FillingBySpout, other types of steps in sequenced recipe won't work, and remove data from film as usual.
  * But it's enough for my current needs. Chances that someone will want to change it to have pressing or sawing are slim anyway.
  */
-@Mixin(FillingBySpout.class)
+@Mixin(value = FillingBySpout.class, remap = false)
 public class FillingBySpoutMixin {
     /**
      * Transfers components from input stack to results, but only if input and result are both {@link FilmItem}.

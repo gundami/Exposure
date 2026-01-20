@@ -3,13 +3,13 @@ package io.github.mortuusars.exposure.network.packet;
 import io.github.mortuusars.exposure.network.packet.clientbound.*;
 import net.minecraft.network.FriendlyByteBuf;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Function;
 
 public class S2CPackets {
     public static <T extends  Packet> Map<Class<T>, Function<FriendlyByteBuf,T>> getDefinitions() {
-        Map<Class<T>, Function<FriendlyByteBuf, T>> map = new HashMap<>();
+        Map<Class<T>, Function<FriendlyByteBuf, T>> map = new LinkedHashMap<>();
         map.put((Class<T>)ActiveCameraRemoveS2CP.class, buf -> (T)ActiveCameraRemoveS2CP.fromPacket(buf));
                 map.put((Class<T>)ActiveCameraInHandSetS2CP.class, buf -> (T)ActiveCameraInHandSetS2CP.fromPacket(buf));
                 map.put((Class<T>)ActiveCameraOnStandSetS2CP.class, buf -> (T)ActiveCameraOnStandSetS2CP.fromPacket(buf));

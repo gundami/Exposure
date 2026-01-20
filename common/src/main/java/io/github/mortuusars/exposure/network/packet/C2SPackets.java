@@ -3,13 +3,13 @@ package io.github.mortuusars.exposure.network.packet;
 import io.github.mortuusars.exposure.network.packet.serverbound.*;
 import net.minecraft.network.FriendlyByteBuf;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Function;
 
 public class C2SPackets {
     public static <T extends  Packet> Map<Class<T>, Function<FriendlyByteBuf,T>> getDefinitions() {
-        Map<Class<T>, Function<FriendlyByteBuf, T>> map = new HashMap<>();
+        Map<Class<T>, Function<FriendlyByteBuf, T>> map = new LinkedHashMap<>();
         map.put((Class<T>)AlbumSignC2SP.class,buf -> (T)AlbumSignC2SP.fromPacket(buf));
                 map.put((Class<T>)AlbumSyncNoteC2SP.class, buf -> (T)AlbumSyncNoteC2SP.fromPacket(buf));
                 map.put((Class<T>) ActiveCameraSetSettingC2SP.class, buf ->  (T)ActiveCameraSetSettingC2SP.fromPacket(buf));

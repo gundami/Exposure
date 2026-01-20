@@ -74,18 +74,33 @@ public class ForgeCommonEvents {
             // This monstrosity is to avoid having to define packets for forge and fabric separately.
             int i = 0;
             for (Map.Entry<Class<Packet>, Function<FriendlyByteBuf, Packet>> definition : S2CPackets.getDefinitions().entrySet()) {
-                registrar.registerMessage(i++,definition.getKey(), Packet::toPacket, definition.getValue(),
+                registrar.registerMessage(i++,definition.getKey(), Packet::toPacket, wrapDecoder(definition.getValue(), definition.getKey()),
                         ForgeCommonEvents.wrapS2C());
             }
 
             for (Map.Entry<Class<Packet>, Function<FriendlyByteBuf, Packet>> definition : C2SPackets.getDefinitions().entrySet()) {
-                registrar.registerMessage(i++,definition.getKey(),Packet::toPacket,definition.getValue(), ForgeCommonEvents.wrapC2S());
+                registrar.registerMessage(i++,definition.getKey(),Packet::toPacket,wrapDecoder(definition.getValue(), definition.getKey()), ForgeCommonEvents.wrapC2S());
             }
 
             for (Map.Entry<Class<Packet>, Function<FriendlyByteBuf, Packet>> definition : CommonPackets.getDefinitions().entrySet()) {
-                registrar.registerMessage(i++,definition.getKey(),Packet::toPacket,definition.getValue(), ForgeCommonEvents.wrapS2C());
-                registrar.registerMessage(i++,definition.getKey(),Packet::toPacket,definition.getValue(), ForgeCommonEvents.wrapC2S());
+                registrar.registerMessage(i++,definition.getKey(),Packet::toPacket,wrapDecoder(definition.getValue(), definition.getKey()), ForgeCommonEvents.wrapS2C());
+                registrar.registerMessage(i++,definition.getKey(),Packet::toPacket,wrapDecoder(definition.getValue(), definition.getKey()), ForgeCommonEvents.wrapC2S());
             }
+        }
+
+        private static Function<FriendlyByteBuf, Packet> wrapDecoder(Function<FriendlyByteBuf, Packet> decoder, Class<Packet> packetClass) {
+            return buf -> {
+                try {
+                    Exposure.LOGGER.debug("Decoding packet {}: readable={}, readerIndex={}", packetClass.getSimpleName(), buf.readableBytes(), buf.readerIndex());
+                    Packet packet = decoder.apply(buf);
+                    Exposure.LOGGER.debug("Successfully decoded packet {}", packetClass.getSimpleName());
+                    return packet;
+                } catch (Exception e) {
+                    Exposure.LOGGER.error("Failed to decode packet {}: readable={}, readerIndex={}, error: {}",
+                            packetClass.getSimpleName(), buf.readableBytes(), buf.readerIndex(), e.getMessage(), e);
+                    throw e;
+                }
+            };
         }
 
 
@@ -93,16 +108,49 @@ public class ForgeCommonEvents {
 
     public static <MSG extends Packet> BiConsumer<MSG, Supplier<NetworkEvent.Context>> wrapS2C() {
         return ((msg, contextSupplier) -> {
-            contextSupplier.get().enqueueWork(() -> msg.handle(PacketFlow.CLIENTBOUND, Minecrft.player()));
-            contextSupplier.get().setPacketHandled(true);
+            try {
+                contextSupplier.get().enqueueWork(() -> {
+                    try {
+                        msg.handle(PacketFlow.CLIENTBOUND, ClientPacketHandler.getPlayer());
+                    } catch (Exception e) {
+                        Exposure.LOGGER.error("[CLIENT] Failed to handle packet {}: {}", msg.getClass().getSimpleName(), e.getMessage(), e);
+                        throw e;
+                    }
+                });
+                contextSupplier.get().setPacketHandled(true);
+            } catch (Exception e) {
+                Exposure.LOGGER.error("[CLIENT] Failed to process packet {}: {}", msg.getClass().getSimpleName(), e.getMessage(), e);
+                contextSupplier.get().setPacketHandled(false);
+                throw e;
+            }
         });
+    }
+
+    // Separate class to avoid loading client-only classes on dedicated server
+    private static class ClientPacketHandler {
+        private static net.minecraft.world.entity.player.Player getPlayer() {
+            return Minecrft.player();
+        }
     }
 
     public static <MSG extends Packet> BiConsumer<MSG, Supplier<NetworkEvent.Context>> wrapC2S() {
         return ((msg, contextSupplier) -> {
-            ServerPlayer player = contextSupplier.get().getSender();
-            contextSupplier.get().enqueueWork(() -> msg.handle(PacketFlow.SERVERBOUND, player));
-            contextSupplier.get().setPacketHandled(true);
+            try {
+                ServerPlayer player = contextSupplier.get().getSender();
+                contextSupplier.get().enqueueWork(() -> {
+                    try {
+                        msg.handle(PacketFlow.SERVERBOUND, player);
+                    } catch (Exception e) {
+                        Exposure.LOGGER.error("[SERVER] Failed to handle packet {}: {}", msg.getClass().getSimpleName(), e.getMessage(), e);
+                        throw e;
+                    }
+                });
+                contextSupplier.get().setPacketHandled(true);
+            } catch (Exception e) {
+                Exposure.LOGGER.error("[SERVER] Failed to process packet {}: {}", msg.getClass().getSimpleName(), e.getMessage(), e);
+                contextSupplier.get().setPacketHandled(false);
+                throw e;
+            }
         });
     }
 
